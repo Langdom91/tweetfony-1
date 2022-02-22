@@ -1,9 +1,0 @@
-{% extends "base.html.twig" %}
-{% block titulo %}Tweetline{{ parent() }}{% endblock %}
-{% block principal %}
-    <ul class="tweetline">
-    {% for tweet in tweets %}
-        {{ include('tweet.html.twig', { 'tweet': tweet }) }}
-    {% endfor %}
-    </ul>
-{% endblock %}
