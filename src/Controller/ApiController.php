@@ -45,7 +45,36 @@ class ApiController extends AbstractController
     function getTweetfonyUser($id)
     {
         // TODO
-        return new JsonResponse();
+        $entityManager = $this->getDoctrine()->getManager();
+        $user = $entityManager->getRepository(User::class)->find($id);
+        
+        if ($user == null) {
+            return new JsonResponse([
+                'error' => 'User not found'
+            ], 404);
+        }
+        
+        $result = new \stdClass();
+        $result->id = $user->getId();
+        $result->name = $user->getName();
+        $result->user_name = $user->getUserName();
+
+
+       $result->tweets = array();
+       foreach ($user->getTweets() as $tweet) {
+           $result->tweets[] = $this->generateUrl('api_get_tweet', [
+               'id' => $tweet->getId(),
+           ], UrlGeneratorInterface::ABSOLUTE_URL);
+       }
+
+       $result->likes = array();
+       foreach ($user->getLikes() as $tweet) {
+           $result->likes[] = $this->generateUrl('api_get_tweet', [
+               'id' => $tweet->getId(),
+           ], UrlGeneratorInterface::ABSOLUTE_URL);
+       }
+
+        return new JsonResponse($result);
     }
 
     function index()
@@ -124,4 +153,166 @@ class ApiController extends AbstractController
         }
         return new JsonResponse($result);
       }
+
+      function getTweets()
+    {
+       
+        $entityManager = $this->getDoctrine()->getManager();
+        $tweets = $entityManager->getRepository(Tweet::class)->findAll();
+
+        
+        if ($tweets == null) {
+            return new JsonResponse([
+                'error' => 'Tweets not found'
+            ], 404);
+        }
+
+       
+        $results = new \stdClass();
+        $results->count = count($tweets);
+        $results->results = array();
+
+       
+        foreach ($tweets as $tweet) {
+            $result = new \stdClass();
+            $result->id = $tweet->getId();
+            $result->url = $this->generateUrl('api_get_tweet', [
+                'id' => $result->id,
+            ], UrlGeneratorInterface::ABSOLUTE_URL);
+
+            array_push($results->results, $result);
+        }
+
+        return new JsonResponse($results);
+    }
+
+    function getTweetfonyUsers()
+    {
+      
+        $entityManager = $this->getDoctrine()->getManager();
+        $users = $entityManager->getRepository(User::class)->findAll();
+
+      
+        if ($users == null) {
+            return new JsonResponse([
+                'error' => 'Users not found'
+            ], 404);
+        }
+
+     
+        $results = new \stdClass();
+        $results->count = count($users);
+        $results->results = array();
+
+     
+        foreach ($users as $user) {
+            $result = new \stdClass();
+            $result->name = $user->getName();
+            $result->url = $this->generateUrl('api_get_user', [
+                'id' => $user->getId(),
+            ], UrlGeneratorInterface::ABSOLUTE_URL);
+
+            array_push($results->results, $result);
+        }
+
+      
+        return new JsonResponse($results);
+    }
+
+    function postTweet(Request $request)
+    {
+        $entityManager = $this->getDoctrine()->getManager();
+        $user = $entityManager->getRepository(User::class)->find($request->request->get("userId"));
+        if ($user == null) {
+            return new JsonResponse([
+                'error' => 'User not found'
+            ], 404);
+        }
+
+        $tweet = new Tweet();
+        $tweet->setText($request->request->get("text"));
+        $tweet->setDate(new \DateTime());
+        $tweet->setUser($user);
+        $entityManager->persist($tweet);
+        $entityManager->flush();
+
+      
+        $result = new \stdClass();
+        $result->id = $tweet->getId();
+        $result->date = $tweet->getDate();
+        $result->text = $tweet->getText();
+        $result->user = $this->generateUrl('api_get_user', [
+            'id' => $user->getId(),
+        ], UrlGeneratorInterface::ABSOLUTE_URL); 
+        $result->likes = array(); 
+
+        return new JsonResponse($result, 201);
+    }
+
+    function putTweet(Request $request, $id)
+    {
+        $entityManager = $this->getDoctrine()->getManager();
+        $tweet = $entityManager->getRepository(Tweet::class)->find($id);
+        if ($tweet == null) {
+            return new JsonResponse([
+                'error' => 'Tweet not found'
+            ], 404);
+        }
+        
+        $tweet->setText($request->request->get("text"));
+        $tweet->setDate(new \DateTime());
+        $entityManager->flush();
+
+      
+        $result = new \stdClass();
+        $result->id = $tweet->getId();
+        $result->date = $tweet->getDate();
+        $result->text = $tweet->getText();
+        $result->user = $this->generateUrl('api_get_user', [
+            'id' => $tweet->getUser()->getId(),
+        ], UrlGeneratorInterface::ABSOLUTE_URL);
+        $result->likes = array();
+        foreach ($tweet->getLikes() as $user) {
+            $result->likes[] = $this->generateUrl('api_get_user', [
+                'id' => $user->getId(),
+            ], UrlGeneratorInterface::ABSOLUTE_URL);
+        }
+
+        return new JsonResponse($result);
+    }
+
+    function deleteTweet($id)
+    {
+        $entityManager = $this->getDoctrine()->getManager();
+        $tweet = $entityManager->getRepository(Tweet::class)->find($id);
+        if ($tweet == null) {
+            return new JsonResponse([
+                'error' => 'Tweet not found'
+            ], 404);
+        }
+        
+        $entityManager->remove($tweet);
+        $entityManager->flush();
+
+        
+        return new JsonResponse(null, 204);
+    }
+
+    function deleteTweetfonyUser($id)
+    {
+        $entityManager = $this->getDoctrine()->getManager();
+        $user = $entityManager->getRepository(User::class)->find($id);
+        if ($user == null) {
+            return new JsonResponse([
+                'error' => 'User not found'
+            ], 404);
+        }
+        
+        $entityManager->remove($user);
+        $entityManager->flush();
+
+     
+        return new JsonResponse(null, 204);
+    }
+
 }
